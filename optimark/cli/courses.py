@@ -1,5 +1,6 @@
 import click
 from optimark.db import get_connection
+from pymysql.err import IntegrityError
 
 @click.group("course")
 def course_cli():
@@ -15,6 +16,8 @@ def create_course(code: str, name: str):
             cur.execute("INSERT INTO courses (code, name) VALUES (%s, %s)", (code, name))
         conn.commit()
         click.echo(f"Course {code}-{name} created.")
+    except IntegrityError:
+        click.echo(f"Course {code} already exists.")
     except Exception as e:
         click.echo(f"Error creating course: {e}")
     finally:
@@ -55,6 +58,8 @@ def update_course(code, new_code, name):
             cur.execute(sql, tuple(params))
         conn.commit()
         click.echo(f"Course {code} updated.")
+    except IntegrityError:
+        click.echo(f"Course {new_code} already exists.")
     finally:
         conn.close()
 
