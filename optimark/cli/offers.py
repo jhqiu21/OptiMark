@@ -5,7 +5,7 @@ from pymysql.err import IntegrityError
 from optimark.db import get_connection
 from optimark.utils import compute_semester_id
 from optimark.cli.semesters import create_semester
-from optimark.cli.courses import create_course
+from optimark.cli.courses import create_course, update_course
 
 @click.group("offer")
 def offer_cli():
@@ -49,6 +49,41 @@ def create_offer(course_code: str, course_name: str, enrolled_date: str):
     finally:
         conn.close()
 
+@offer_cli.command("update")
+@click.argument("course_code")
+@click.argument("semester_id")
+@click.option("--date", "new_date", default=None, help="New enrollment date")
+@click.option("--name", "new_name", default=None, help="New course name.")
+@click.option("--code", "new_code", default=None, help="New course code.")
+def update_offer(course_code, semester_id, new_date, new_name, new_code):
+    if not (new_date or new_name or new_code):
+        return click.echo("Nothing to update. Use --date, --name and/or --code.")
+    if new_date:
+        sem_id, sem_start, sem_end = compute_semester_id(new_date)
+        try:
+            create_semester.callback(sem_id, sem_start, sem_end)
+        except Exception:
+            pass
+        conn = get_connection()
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE offers SET semester_id=%s, enrolled_at=%s 
+                WHERE course_code=%s AND semester_id=%s
+            """, (sem_id, new_date, course_code, semester_id)
+            )
+            conn.commit()
+        click.echo(f"Semester moved to {sem_id}")
+        semester_id = sem_id
+    if new_name:
+        update_course.callback(course_code, None, new_name)
+        click.echo(f"Course Name set to “{new_name}”")
+    if new_code:
+        update_course.callback(course_code, new_code, None)
+        click.echo(f"Course Code changed from {course_code} to {new_code}")
+        course_code = new_code
+
+    click.echo(f"Offering updated: {course_code}@{semester_id}")
+
 @offer_cli.command("get")
 @click.argument("course_code")
 @click.argument("semester_id")
@@ -84,4 +119,3 @@ def delete_offer(course_code: str, semester_id: str):
         click.echo(f"Offering {course_code}-{semester_id} deleted.")
     finally:
         conn.close()
-        
