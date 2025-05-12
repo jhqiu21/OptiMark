@@ -63,3 +63,4 @@ logs/
 
 # Misc
 coverage/
+/optimark.egg-info
