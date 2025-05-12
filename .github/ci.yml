@@ -1,0 +1,75 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    # Bring up MySQL 8 as a service container
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
+          MYSQL_DATABASE: ${{ secrets.OPTIMARK_DB_NAME }}
+          MYSQL_USER: ${{ secrets.OPTIMARK_DB_USER }}
+          MYSQL_PASSWORD: ${{ secrets.OPTIMARK_DB_PASS }}
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping --silent"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 3
+
+    # Pass MySQL connection info into the job
+    env:
+      OPTIMARK_DB_HOST: ${{ secrets.OPTIMARK_DB_HOST }}
+      OPTIMARK_DB_PORT: ${{ secrets.OPTIMARK_DB_PORT }}
+      OPTIMARK_DB_USER: ${{ secrets.OPTIMARK_DB_USER }}
+      OPTIMARK_DB_PASS: ${{ secrets.OPTIMARK_DB_PASS }}
+      OPTIMARK_DB_NAME: ${{ secrets.OPTIMARK_DB_NAME }}
+
+    steps:
+      # Check out code
+      - uses: actions/checkout@v4
+
+      # Set up Python
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      # Install CLI requirements and flake8
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r python-cli/requirements.txt
+          pip install flake8
+
+      # Lint both db/ and python-cli/ folders
+      - name: Lint with flake8
+        run: flake8 db/ python-cli/
+
+      # Wait for MySQL to become healthy
+      - name: Wait for MySQL
+        run: |
+          for i in {1..30}; do
+            mysqladmin ping -h "$OPTIMARK_DB_HOST" \
+              -u"$OPTIMARK_DB_USER" -p"$OPTIMARK_DB_PASS" &>/dev/null && break
+            echo "Waiting for MySQL…"
+            sleep 2
+          done
+
+      # Initialize database schema
+      - name: Initialize database
+        run: python db/init_db.py
+
+      # Smoke-test CLI
+      - name: Smoke test CLI help
+        run: python python-cli/db_cli.py --help
