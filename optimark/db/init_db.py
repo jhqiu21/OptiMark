@@ -7,6 +7,7 @@ import os
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '.env'))
 base = os.path.abspath(os.path.join(__file__, '..', '..', '..'))
 SCHEMA_PATH = os.path.join(base, 'db', 'schema.sql')
+CLEAR_PATH = os.path.join(base, 'db', 'clean.sql')
 
 DB_HOST = os.getenv('OPTIMARK_DB_HOST')
 DB_PORT = int(os.getenv('OPTIMARK_DB_PORT'))
@@ -26,6 +27,18 @@ def get_connection():
 def init_db():
     conn = get_connection()
     with conn.cursor() as cur, open(SCHEMA_PATH, 'r') as f:
+        sql = f.read()
+        for stmt in sql.split(';'):
+            stmt = stmt.strip()
+            if not stmt:
+                continue
+            cur.execute(stmt)
+    conn.commit()
+    conn.close()
+
+def clean_db():
+    conn = get_connection()
+    with conn.cursor() as cur, open(CLEAR_PATH, 'r') as f:
         sql = f.read()
         for stmt in sql.split(';'):
             stmt = stmt.strip()
