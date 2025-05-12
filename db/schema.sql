@@ -30,29 +30,28 @@ CREATE TABLE IF NOT EXISTS semesters (
 
 -- courses: catalog of course subjects
 CREATE TABLE IF NOT EXISTS courses (
-  id CHAR(12) PRIMARY KEY,    -- format: DEPT1234-X, e.g. CS1010-A
-  name VARCHAR(100) NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  code CHAR(12) PRIMARY KEY,    -- format: DEPT1234-X, e.g. CS1010-A
+  name VARCHAR(100) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- offers: course offerings in specific semesters (composite PK)
 CREATE TABLE IF NOT EXISTS offers (
-  course_id CHAR(12) NOT NULL,
+  course_code CHAR(12) NOT NULL,
   semester_id CHAR(6) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (course_id, semester_id),
-  FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  PRIMARY KEY (course_code, semester_id),
+  FOREIGN KEY (course_code) REFERENCES courses(code) ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (semester_id) REFERENCES semesters(id) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- offering_instructor: which staff teach each offering
 CREATE TABLE IF NOT EXISTS offering_instructor (
-  course_id CHAR(12) NOT NULL,
+  course_code CHAR(12) NOT NULL,
   semester_id CHAR(6) NOT NULL,
   instructor_id CHAR(8) NOT NULL,
-  PRIMARY KEY (course_id, semester_id, instructor_id),
-  FOREIGN KEY (course_id, semester_id)
-    REFERENCES offers(course_id, semester_id)
+  PRIMARY KEY (course_code, semester_id, instructor_id),
+  FOREIGN KEY (course_code, semester_id)
+    REFERENCES offers(course_code, semester_id)
       ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (instructor_id)
     REFERENCES staff(id)
@@ -61,13 +60,13 @@ CREATE TABLE IF NOT EXISTS offering_instructor (
 
 -- offering_students: which students are enrolled in each offering
 CREATE TABLE IF NOT EXISTS offering_students (
-  course_id CHAR(12) NOT NULL,
+  course_code CHAR(12) NOT NULL,
   semester_id CHAR(6) NOT NULL,
   student_id CHAR(8) NOT NULL,
   joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (course_id, semester_id, student_id),
-  FOREIGN KEY (course_id, semester_id)
-    REFERENCES offers(course_id, semester_id)
+  PRIMARY KEY (course_code, semester_id, student_id),
+  FOREIGN KEY (course_code, semester_id)
+    REFERENCES offers(course_code, semester_id)
       ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (student_id)
     REFERENCES students(id)
@@ -77,13 +76,13 @@ CREATE TABLE IF NOT EXISTS offering_students (
 -- exams: instances of assessments for a given offering
 CREATE TABLE IF NOT EXISTS exams (
   id CHAR(8) PRIMARY KEY,
-  course_id CHAR(12) NOT NULL,
+  course_code CHAR(12) NOT NULL,
   semester_id CHAR(6) NOT NULL,
   name VARCHAR(100) NOT NULL,
   start_time DATETIME,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (course_id, semester_id)
-    REFERENCES offers(course_id, semester_id)
+  FOREIGN KEY (course_code, semester_id)
+    REFERENCES offers(course_code, semester_id)
       ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
