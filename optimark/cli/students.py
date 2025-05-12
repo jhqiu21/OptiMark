@@ -1,46 +1,22 @@
-from db import get_connection
 import click
-import secrets
-import hashlib
-import string
+from optimark.db import get_connection
+from optimark.utils import STUDENT_PREFIXES, generate_user_id, hash_password
 
 @click.group(name="student")
 def student_cli():
-    """Manage students"""
     pass
 
-def generate_user_id(username: str) -> str:
-    """Generates 8 bits user_id using username"""
-    STUDENT_PREFIXES = ['A','B','E','H']
-    salt = secrets.token_hex(2)
-    name_bytes = f"{username}{salt}".encode('utf-8')
-    prefix = STUDENT_PREFIXES[hashlib.sha1(name_bytes).digest()[0] % len(STUDENT_PREFIXES)]
-    
-    num = int(hashlib.md5(name_bytes).hexdigest(), 16) % 1_000_000
-    middle = f"{num:06d}"
-
-    idx = int(hashlib.sha256(name_bytes).hexdigest(), 16) % 26
-    last = string.ascii_uppercase[idx]
-    
-    if last == prefix:
-        last = string.ascii_uppercase[(idx + 1) % 26]
-
-    return f"{prefix}{middle}{last}"
-
 @student_cli.command("create")
-@click.argument("id")
-@click.argument("name")
+@click.argument("username")
 @click.argument("password")
 def create_student(username, password):
     """Create a new student"""
     conn = get_connection()
-    id = generate_user_id(username)
-    hash_psw = hashlib.sha256(password.encode('utf-8')).hexdigest()
-    
+    id = generate_user_id(username, STUDENT_PREFIXES)
+    hash_psw = hash_password(password)
     try:
         with conn.cursor() as cur:
-            cur.execute(
-                "INSERT INTO students (id,name,password) VALUES (%s,%s,%s)",
+            cur.execute("INSERT INTO students (id,name,password) VALUES (%s,%s,%s)",
                 (id, username, hash_psw)
             )
         conn.commit()
@@ -53,12 +29,10 @@ def create_student(username, password):
 @student_cli.command("get")
 @click.argument("id")
 def get_student(id):
-    """Get student by ID"""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT id,name,email,enrolled" \
-            "_at FROM students WHERE id=%s", (id,))
+            cur.execute("SELECT id,name,email,enrolled_at FROM students WHERE id=%s", (id,))
             r = cur.fetchone()
             click.echo(r or f"No student {id}")
     finally:
@@ -70,25 +44,47 @@ def list_students():
     conn = get_connection()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT id, name, email, enrolled_at FROM students")
-            for r in cur.fetchall():
-                click.echo(r)
+            cur.execute("""
+                SELECT id, name, email,
+                       DATE_FORMAT(enrolled_at, '%Y-%m-%d %H:%i:%s') AS enrolled_at
+                FROM students
+                ORDER BY enrolled_at DESC
+            """)
+            rows = cur.fetchall()
+            if not rows:
+                click.echo("No students found.")
+                return
+            click.echo(f"{'ID':8} {'NAME':20} {'EMAIL':25} {'ENROLLED_AT'}")
+            click.echo("-" * 70)
+            for r in rows:
+                click.echo(f"{r['id']:8} {r['name'][:20]:20} { (r['email'] or ''):25} {r['enrolled_at']}")
     finally:
         conn.close()
 
 @student_cli.command("update")
 @click.argument("id")
-@click.option("--email", help="New email")
-@click.option("--password", help="New password")
-def update_student(id, email, password):
-    """Update student's email or password"""
+@click.option("--name", help="Update Student Username")
+@click.option("--email", help="Update Student Email")
+@click.option("--password", help="Update Student Password")
+def update_student(id, name, email, password):
+    """
+    Update student fields.
+    --name     : change full name
+    --email    : change email (must remain unique)
+    --password : change password
+    """
     fields, params = [], []
+    if name:
+        fields.append("name=%s")
+        params.append(name)
     if email:
-        fields.append("email=%s"); params.append(email)
+        fields.append("email=%s")
+        params.append(email)
     if password:
-        fields.append("password=%s"); params.append(password)
+        fields.append("password=%s")
+        params.append(password)
     if not fields:
-        return click.echo("Nothing to update.")
+        return click.echo("Nothing to update. Use --name/--email/--password.")
     params.append(id)
     sql = f"UPDATE students SET {', '.join(fields)}, updated_at=NOW() WHERE id=%s"
     conn = get_connection()
@@ -103,7 +99,6 @@ def update_student(id, email, password):
 @student_cli.command("delete")
 @click.argument("id")
 def delete_student(id):
-    """Delete a student"""
     conn = get_connection()
     try:
         with conn.cursor() as cur:
