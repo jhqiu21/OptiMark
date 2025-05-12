@@ -5,7 +5,8 @@ from dotenv import load_dotenv
 import os
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '.env'))
-SCHEMA_PATH = os.path.join(os.path.dirname(__file__), 'schema.sql')
+base = os.path.abspath(os.path.join(__file__, '..', '..', '..'))
+SCHEMA_PATH = os.path.join(base, 'db', 'schema.sql')
 
 DB_HOST = os.getenv('OPTIMARK_DB_HOST')
 DB_PORT = int(os.getenv('OPTIMARK_DB_PORT'))
@@ -33,7 +34,3 @@ def init_db():
             cur.execute(stmt)
     conn.commit()
     conn.close()
-
-if __name__ == '__main__':
-    init_db()
-    print("Database schema initialized.")
