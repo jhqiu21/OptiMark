@@ -24,8 +24,7 @@ CREATE TABLE IF NOT EXISTS staff (
 CREATE TABLE IF NOT EXISTS semesters (
   id CHAR(6) PRIMARY KEY,    -- format: YYYYS#, e.g. 2425S1
   start_date DATE,
-  end_date DATE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  end_date DATE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- courses: catalog of course subjects
@@ -38,7 +37,7 @@ CREATE TABLE IF NOT EXISTS courses (
 CREATE TABLE IF NOT EXISTS offers (
   course_code CHAR(12) NOT NULL,
   semester_id CHAR(6) NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  enrolled_at DATE DEFAULT (CURRENT_DATE),
   PRIMARY KEY (course_code, semester_id),
   FOREIGN KEY (course_code) REFERENCES courses(code) ON DELETE CASCADE ON UPDATE CASCADE,
   FOREIGN KEY (semester_id) REFERENCES semesters(id) ON DELETE RESTRICT ON UPDATE CASCADE
