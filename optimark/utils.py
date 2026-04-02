@@ -52,3 +52,8 @@ def compute_semester_id(start_date: str) -> str:
         end = date(year, 7, 31)
 
     return sem_id, start.isoformat(), end.isoformat()
+
+def generate_exam_id(course_code: str, semester_id: str, exam_name: str):
+    name_bytes = f"{course_code}-{semester_id}-{exam_name}".encode('utf-8')
+    digest = hashlib.sha256(name_bytes).hexdigest()
+    return digest.upper()[:8]

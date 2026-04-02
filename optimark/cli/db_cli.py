@@ -1,6 +1,7 @@
 #! /usr/bin/env python
 import click
 from .courses import course_cli
+from .exam import exam_cli
 from .offers import offer_cli
 from .semesters import semester_cli
 from .staff import staff_cli
@@ -12,6 +13,7 @@ def cli():
     pass
 
 cli.add_command(course_cli)
+cli.add_command(exam_cli)
 cli.add_command(offer_cli)
 cli.add_command(semester_cli)
 cli.add_command(student_cli)
